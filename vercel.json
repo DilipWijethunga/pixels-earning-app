@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://pixels-earning-api.onrender.com/api/:path*"
+    }
+  ]
+}
