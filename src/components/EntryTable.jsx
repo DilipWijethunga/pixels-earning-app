@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Pencil, AlertCircle, Inbox, Trash2 } from 'lucide-react';
-import NoteTooltip from './NoteTooltip';
 
 function SkeletonRow() {
   return (
@@ -54,7 +53,6 @@ export default function EntryTable({ entries, loading, pixelPrice, onRowClick, o
               <th className="text-right px-4 py-3.5 text-slate-400 font-semibold uppercase text-xs tracking-wider">Expenses (PIXEL)</th>
               <th className="text-right px-4 py-3.5 text-slate-400 font-semibold uppercase text-xs tracking-wider">Net (PIXEL)</th>
               <th className="text-right px-4 py-3.5 text-slate-400 font-semibold uppercase text-xs tracking-wider">Net (USD)</th>
-              <th className="text-center px-4 py-3.5 text-slate-400 font-semibold uppercase text-xs tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -82,11 +80,6 @@ export default function EntryTable({ entries, loading, pixelPrice, onRowClick, o
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <span className="text-emerald-400 font-medium">{fmtPixel(entry.earnings)}</span>
-                          {entry.earningsNote && (
-                            <NoteTooltip note={entry.earningsNote}>
-                              <AlertCircle size={13} className="text-amber-400 cursor-help flex-shrink-0" />
-                            </NoteTooltip>
-                          )}
                         </div>
                       </td>
 
@@ -94,11 +87,6 @@ export default function EntryTable({ entries, loading, pixelPrice, onRowClick, o
                       <td className="px-4 py-3.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <span className="text-red-400 font-medium">{fmtPixel(entry.expenses)}</span>
-                          {entry.expensesNote && (
-                            <NoteTooltip note={entry.expensesNote}>
-                              <AlertCircle size={13} className="text-amber-400 cursor-help flex-shrink-0" />
-                            </NoteTooltip>
-                          )}
                         </div>
                       </td>
 
@@ -110,42 +98,6 @@ export default function EntryTable({ entries, loading, pixelPrice, onRowClick, o
                       {/* Net USD */}
                       <td className={`px-4 py-3.5 text-right font-medium ${netUsdAmt === null ? 'text-slate-500' : net >= 0 ? 'text-sky-400' : 'text-orange-400'}`}>
                         {netUsdAmt === null ? '—' : `${netUsdAmt >= 0 ? '+' : ''}$${netUsdAmt.toFixed(2)}`}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-4 py-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Edit */}
-                          <button
-                            id={`edit-btn-${entry._id}`}
-                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); onRowClick(entry); }}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-violet-500/20 hover:bg-violet-500/40 text-violet-400 hover:text-violet-300 transition-all duration-200"
-                            title="Edit entry"
-                          >
-                            <Pencil size={13} />
-                          </button>
-
-                          {/* Delete — two-click confirm */}
-                          {confirmDeleteId === entry._id ? (
-                            <button
-                              id={`confirm-delete-btn-${entry._id}`}
-                              onClick={(e) => { e.stopPropagation(); onDelete(entry._id); setConfirmDeleteId(null); }}
-                              className="p-1.5 rounded-lg bg-red-500/30 hover:bg-red-500/50 text-red-300 text-xs font-medium px-2 flex items-center gap-1 transition-all duration-200"
-                              title="Confirm delete"
-                            >
-                              Sure?
-                            </button>
-                          ) : (
-                            <button
-                              id={`delete-btn-${entry._id}`}
-                              onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(entry._id); }}
-                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all duration-200"
-                              title="Delete entry"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );

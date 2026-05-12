@@ -28,10 +28,21 @@ function MetricCard({ label, value, subValue, icon: Icon, color, loading }) {
 }
 
 export default function SummaryCards({ entries, pixelPrice, loading }) {
-  const totalEarnings = entries.reduce((s, e) => s + (e.earnings || 0), 0);
-  const totalExpenses = entries.reduce((s, e) => s + (e.expenses || 0), 0);
+  const totalEarnings = entries.filter(e => e.type === 'earning').reduce((s, e) => s + e.amount, 0);
+  const totalExpenses = entries.filter(e => e.type === 'expense').reduce((s, e) => s + e.amount, 0);
   const netPixel = totalEarnings - totalExpenses;
   const netUsd = pixelPrice ? netPixel * pixelPrice : null;
+
+  // Aggregate earnings by tag
+  const earningsByTag = entries
+    .filter(e => e.type === 'earning')
+    .reduce((acc, e) => {
+      const t = e.tag || 'Untagged';
+      acc[t] = (acc[t] || 0) + e.amount;
+      return acc;
+    }, {});
+    
+  const sortedTags = Object.entries(earningsByTag).sort((a, b) => b[1] - a[1]);
 
   const fmtPixel = (val) => {
     const num = parseFloat(val.toFixed(4));
@@ -42,56 +53,73 @@ export default function SummaryCards({ entries, pixelPrice, loading }) {
     val === null ? 'N/A' : `$${val.toFixed(2)}`;
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <MetricCard
-        label="Total Earnings"
-        value={`${fmtPixel(totalEarnings)} PIXEL`}
-        icon={TrendingUp}
-        color={{
-          bg: 'bg-emerald-500',
-          iconBg: 'bg-emerald-500/20',
-          icon: 'text-emerald-400',
-          text: 'text-emerald-400',
-        }}
-        loading={loading}
-      />
-      <MetricCard
-        label="Total Expenses"
-        value={`${fmtPixel(totalExpenses)} PIXEL`}
-        icon={TrendingDown}
-        color={{
-          bg: 'bg-red-500',
-          iconBg: 'bg-red-500/20',
-          icon: 'text-red-400',
-          text: 'text-red-400',
-        }}
-        loading={loading}
-      />
-      <MetricCard
-        label="Net $PIXEL"
-        value={`${netPixel >= 0 ? '+' : ''}${fmtPixel(netPixel)} PIXEL`}
-        icon={Activity}
-        color={{
-          bg: netPixel >= 0 ? 'bg-violet-500' : 'bg-orange-500',
-          iconBg: netPixel >= 0 ? 'bg-violet-500/20' : 'bg-orange-500/20',
-          icon: netPixel >= 0 ? 'text-violet-400' : 'text-orange-400',
-          text: netPixel >= 0 ? 'text-violet-400' : 'text-orange-400',
-        }}
-        loading={loading}
-      />
-      <MetricCard
-        label="Net USD"
-        value={fmtUsd(netUsd)}
-        subValue={pixelPrice ? `@ $${pixelPrice.toFixed(4)}/PIXEL` : 'Price loading...'}
-        icon={DollarSign}
-        color={{
-          bg: 'bg-sky-500',
-          iconBg: 'bg-sky-500/20',
-          icon: 'text-sky-400',
-          text: 'text-sky-300',
-        }}
-        loading={loading}
-      />
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Earnings"
+          value={`${fmtPixel(totalEarnings)} PIXEL`}
+          icon={TrendingUp}
+          color={{
+            bg: 'bg-emerald-500',
+            iconBg: 'bg-emerald-500/20',
+            icon: 'text-emerald-400',
+            text: 'text-emerald-400',
+          }}
+          loading={loading}
+        />
+        <MetricCard
+          label="Total Expenses"
+          value={`${fmtPixel(totalExpenses)} PIXEL`}
+          icon={TrendingDown}
+          color={{
+            bg: 'bg-red-500',
+            iconBg: 'bg-red-500/20',
+            icon: 'text-red-400',
+            text: 'text-red-400',
+          }}
+          loading={loading}
+        />
+        <MetricCard
+          label="Net $PIXEL"
+          value={`${netPixel >= 0 ? '+' : ''}${fmtPixel(netPixel)} PIXEL`}
+          icon={Activity}
+          color={{
+            bg: netPixel >= 0 ? 'bg-violet-500' : 'bg-orange-500',
+            iconBg: netPixel >= 0 ? 'bg-violet-500/20' : 'bg-orange-500/20',
+            icon: netPixel >= 0 ? 'text-violet-400' : 'text-orange-400',
+            text: netPixel >= 0 ? 'text-violet-400' : 'text-orange-400',
+          }}
+          loading={loading}
+        />
+        <MetricCard
+          label="Net USD"
+          value={fmtUsd(netUsd)}
+          subValue={pixelPrice ? `@ $${pixelPrice.toFixed(4)}/PIXEL` : 'Price loading...'}
+          icon={DollarSign}
+          color={{
+            bg: 'bg-sky-500',
+            iconBg: 'bg-sky-500/20',
+            icon: 'text-sky-400',
+            text: 'text-sky-300',
+          }}
+          loading={loading}
+        />
+      </div>
+
+      {/* Tag Breakdown */}
+      {!loading && sortedTags.length > 0 && (
+        <div className="card p-4 flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Earnings by Tag</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {sortedTags.map(([tag, amount]) => (
+              <div key={tag} className="flex flex-col bg-slate-800/50 border border-slate-700/50 rounded-lg p-3">
+                <span className="text-xs text-slate-400 font-medium mb-1 truncate">{tag}</span>
+                <span className="text-sm font-bold text-emerald-400">{fmtPixel(amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

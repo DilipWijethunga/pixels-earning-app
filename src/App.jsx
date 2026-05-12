@@ -1,82 +1,86 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Plus, Coins, Calculator } from 'lucide-react';
 
 import SummaryCards from './components/SummaryCards';
 import FilterBar from './components/FilterBar';
 import EntryTable from './components/EntryTable';
 import AddEditModal from './components/AddEditModal';
+import DailyDetailsModal from './components/DailyDetailsModal';
 import PriceBadge from './components/PriceBadge';
 import PixelCalculator from './components/PixelCalculator';
 import ToastContainer, { showToast } from './components/Toast';
 
 import { useEntries } from './hooks/useEntries';
 import { usePixelPrice } from './hooks/usePixelPrice';
+import { useTags } from './hooks/useTags';
 
 const now = new Date();
 
-function loadFilter() {
-  try {
-    const saved = localStorage.getItem('pixel-filter');
-    if (saved) return JSON.parse(saved);
-  } catch {}
+function defaultFilter() {
   return {
-    view: 'week',
+    view: 'month',
     month: now.getMonth() + 1,
     year: now.getFullYear(),
   };
 }
 
-function saveFilter(f) {
-  try {
-    localStorage.setItem('pixel-filter', JSON.stringify(f));
-  } catch {}
-}
-
 export default function App() {
-  const [filter, setFilter] = useState(loadFilter);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(null);
+  const [filter, setFilter] = useState(defaultFilter);
+  const [selectedDayId, setSelectedDayId] = useState(null);
+  
+  const [addEditModalOpen, setAddEditModalOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState(null);
+  const [initialDateForAdd, setInitialDateForAdd] = useState(null);
   const [calcOpen, setCalcOpen] = useState(false);
 
   const handleFilterChange = useCallback((f) => {
     setFilter(f);
-    saveFilter(f);
   }, []);
 
-  const { entries, loading, createEntry, updateEntry, deleteEntry } = useEntries(filter);
+  const { entries, groupedEntries, loading, createEntry, updateEntry, deleteEntry } = useEntries(filter);
   const { price: pixelPrice, loading: priceLoading } = usePixelPrice();
+  const { tags, addTag, deleteTag } = useTags();
 
-  const openAdd = () => {
-    setSelectedEntry(null);
-    setModalOpen(true);
+  // Find the selected day's data so the modal stays up to date when entries refetch
+  const selectedDayData = useMemo(() => {
+    if (!selectedDayId) return null;
+    return groupedEntries.find(g => g.id === selectedDayId) || null;
+  }, [groupedEntries, selectedDayId]);
+
+  const openDayDetails = (dayData) => {
+    setSelectedDayId(dayData.id);
   };
 
-  const openEdit = (entry) => {
-    setSelectedEntry(entry);
-    setModalOpen(true);
+  const openAdd = (dateStr) => {
+    setTransactionToEdit(null);
+    setInitialDateForAdd(typeof dateStr === 'string' ? dateStr : null);
+    setAddEditModalOpen(true);
   };
 
-  const handleSave = async (payload) => {
-    if (selectedEntry) {
-      await updateEntry(selectedEntry._id, payload);
-      showToast('Entry updated successfully!');
+  const openEdit = (transaction) => {
+    setTransactionToEdit(transaction);
+    setAddEditModalOpen(true);
+  };
+
+  const handleSaveTransaction = async (payload) => {
+    if (transactionToEdit) {
+      await updateEntry(transactionToEdit._id, payload);
+      showToast('Transaction updated successfully!');
     } else {
       await createEntry(payload);
-      showToast('Entry added successfully!');
+      showToast('Transaction added successfully!');
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteTransaction = async (id) => {
     await deleteEntry(id);
-    showToast('Entry deleted.', 'error');
+    showToast('Transaction deleted.', 'error');
   };
 
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Navbar */}
       <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-violet-600/20 rounded-xl border border-violet-500/30">
               <Coins size={18} className="text-violet-400" />
@@ -87,10 +91,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right side */}
           <div className="flex items-center gap-2">
             <PriceBadge price={pixelPrice} loading={priceLoading} />
-            {/* Calculator icon-only button */}
             <button
               id="open-calc-btn"
               onClick={() => setCalcOpen(true)}
@@ -112,9 +114,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
-        {/* Filter bar */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-slate-100">Dashboard</h2>
@@ -123,49 +123,51 @@ export default function App() {
           <FilterBar filter={filter} onChange={handleFilterChange} />
         </div>
 
-        {/* Summary cards */}
         <SummaryCards entries={entries} pixelPrice={pixelPrice} loading={loading} />
 
-        {/* Section header */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-            Entries
-            {!loading && (
-              <span className="ml-2 bg-slate-700 text-slate-400 text-xs font-normal px-2 py-0.5 rounded-full">
-                {entries.length}
-              </span>
-            )}
+            Daily Summaries
           </h3>
-          <p className="text-xs text-slate-600">Click a row to edit</p>
+          <p className="text-xs text-slate-600">Click a row to view all transactions</p>
         </div>
 
-        {/* Table */}
+        {/* Table renders the Grouped entries */}
         <EntryTable
-          entries={entries}
+          entries={groupedEntries}
           loading={loading}
           pixelPrice={pixelPrice}
-          onRowClick={openEdit}
-          onDelete={handleDelete}
+          onRowClick={openDayDetails}
         />
       </main>
 
-      {/* Modal */}
-      <AddEditModal
-        isOpen={modalOpen}
-        entry={selectedEntry}
-        onClose={() => setModalOpen(false)}
-        onSave={handleSave}
-        onDelete={handleDelete}
+      <DailyDetailsModal
+        isOpen={Boolean(selectedDayId)}
+        dayData={selectedDayData}
+        onClose={() => setSelectedDayId(null)}
+        onAddTransaction={openAdd}
+        onEditTransaction={openEdit}
+        onDeleteTransaction={handleDeleteTransaction}
+        pixelPrice={pixelPrice}
       />
 
-      {/* Calculator popup */}
+      <AddEditModal
+        isOpen={addEditModalOpen}
+        entry={transactionToEdit}
+        initialDate={initialDateForAdd}
+        onClose={() => setAddEditModalOpen(false)}
+        onSave={handleSaveTransaction}
+        tags={tags}
+        addTag={addTag}
+        deleteTag={deleteTag}
+      />
+
       <PixelCalculator
         isOpen={calcOpen}
         onClose={() => setCalcOpen(false)}
         pixelPrice={pixelPrice}
       />
 
-      {/* Toasts */}
       <ToastContainer />
     </div>
   );
